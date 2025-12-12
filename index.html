@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quezon City Map - Mosquito Risk Zones</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        header {
+            background: #35408E;
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            position: sticky;
+            top: 0;
+        }
+        
+        .logo-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .navbar {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .nav-link.active-page {
+            background: rgba(255, 255, 255, 0.25);
+            font-weight: 600;
+        }
+
+        .nav-link.donation {
+            background: #ff6b6b;
+            padding: 10px 20px;
+            font-weight: 600;
+        }
+
+        .nav-link.donation:hover {
+            background: #ff5252;
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        }
+
+        /* Page Sections */
+        .page-section {
+            display: none;
+        }
+
+        /* Home Section - Map */
+        #home {
+            height: 100vh;
+            display: none;
+            flex-direction: column;
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Popup Styles */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 280px;
+        }
+
+        .popup-header {
+            padding: 15px;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .popup-header.high-risk {
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+        }
+
+        .popup-header.medium-risk {
+            background: linear-gradient(135deg, #ff8800, #cc6600);
+        }
+
+        .popup-header.low-risk {
+            background: linear-gradient(135deg, #ffff00, #cccc00);
+            color: #333;
+        }
+
+        .popup-header.no-risk {
+            background: linear-gradient(135deg, #4caf50, #388e3c);
+        }
+
+        .popup-body {
+            padding: 15px;
+            background: white;
+        }
+
+        .risk-level {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .prevention-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #35408E;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #35408E;
+            padding-bottom: 4px;
+        }
+
+        .prevention-list {
+            font-size: 11px;
+            color: #555;
+            line-height: 1.6;
+            padding-left: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .prevention-list li {
+            margin-bottom: 6px;
+            padding-left: 18px;
+            position: relative;
+        }
+
+        .prevention-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        /* Map Legend Styles */
+        .legend {
+            background: transparent;
+            z-index: 1000;
+            padding: 12px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .legend-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            padding: 12px 20px;
+            max-width: 900px;
+            width: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .legend-header {
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            color: #35408E;
+            margin-bottom: 12px;
+        }
+
+        .seasons-row {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .season-btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .season-btn.dry {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            color: #7c4a03;
+        }
+
+        .season-btn.dry:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(253, 160, 133, 0.4);
+        }
+
+        .season-btn.dry.active {
+            box-shadow: 0 0 0 3px rgba(253, 160, 133, 0.5);
+        }
+
+        .season-btn.wet {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .season-btn.wet:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .season-btn.wet.active {
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
+        }
+
+        .season-icon {
+            font-size: 16px;
+        }
+
+        .quarters-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .quarter {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .quarter-btn {
+            width: 100%;
+            padding: 10px 16px;
+            border: 2px solid;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.95);
+            margin-bottom: 6px;
+        }
+
+        .quarter-btn.dry-quarter {
+            border-color: #fda085;
+            color: #b35a1f;
+        }
+
+        .quarter-btn.dry-quarter:hover {
+            background: #fff5f0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(253, 160, 133, 0.3);
+        }
+
+        .quarter-btn.dry-quarter.active {
+            background: #fff5f0;
+            box-shadow: 0 0 0 3px rgba(253, 160, 133, 0.5);
+        }
+
+        .quarter-btn.wet-quarter {
+            border-color: #667eea;
+            color: #4a5db8;
+        }
+
+        .quarter-btn.wet-quarter:hover {
+            background: #f0f3ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .quarter-btn.wet-quarter.active {
+            background: #f0f3ff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
+        }
+
+        .months-row {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+        }
+
+        .month-label {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 11px;
+            background: rgba(249, 249, 249, 0.9);
+            color: #888;
+            text-align: center;
+        }
+
+        .info {
+            background: transparent;
+            padding: 8px 0;
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .info-content {
+            background: rgba(240, 240, 240, 0.95);
+            padding: 8px 20px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Risk Legend */
+        .risk-legend {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+            min-width: 160px;
+        }
+
+        .risk-legend.show {
+            display: block;
+        }
+
+        .risk-legend h4 {
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .color-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-box {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+
+        .color-box.high {
+            background: #ff0000;
+        }
+
+        .color-box.medium {
+            background: #ff8800;
+        }
+
+        .color-box.low {
+            background: #ffff00;
+        }
+
+        .legend-text {
+            font-size: 12px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .toggle-heatmap-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: #35408E;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-heatmap-btn:hover {
+            background: #2a3470;
+            transform: translateY(-1px);
+        }
+
+        .toggle-heatmap-btn.hidden {
+            background: #888;
+        }
+
+        /* Content Sections */
+        .content-section {
+            min-height: 100vh;
+            padding: 80px 20px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #about {
+            background: white;
+        }
+
+        #donation {
+            background: white;
+        }
+
+        #contact {
+            background: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .content-card {
+            background: white;
+            border-radius: 16px;
+            padding: 60px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            font-size: 42px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 28px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+        }
+
+        #about h1, #about h2 {
+            color: #35408E;
+        }
+
+        #donation h1 {
+            color: #ff6b6b;
+            text-align: center;
+        }
+
+        #contact h1, #contact h2 {
+            color: #35408E;
+        }
+
+        p {
+            color: #555;
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .mission-vision {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .card {
+            background: #35408E;
+            padding: 30px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        .card h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        .card p {
+            color: rgba(255,255,255,0.95);
+        }
+
+        /* Donation Styles */
+        .heart-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .donation-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .donation-card {
+            background: #35408E;
+            padding: 30px;
+            border-radius: 12px;
+            color: white;
+            transition: transform 0.3s ease;
+        }
+
+        .donation-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .donation-card h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        .donation-card p {
+            color: rgba(255,255,255,0.95);
+            font-size: 14px;
+        }
+
+        .impact-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            margin: 40px 0;
+        }
+
+        .impact-section h2 {
+            color: #35408E;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        .impact-list {
+            text-align: left;
+            list-style: none;
+            padding: 0;
+        }
+
+        .impact-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid #dee2e6;
+            color: #555;
+            font-size: 15px;
+        }
+
+        .impact-list li:before {
+            content: "✓";
+            color: #4caf50;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: #ff6b6b;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .cta-button:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        /* Contact Styles */
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .contact-card {
+            background: #35408E;
+            padding: 30px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .contact-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .contact-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .contact-card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .contact-card p {
+            color: rgba(255,255,255,0.95);
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .contact-card a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            border-bottom: 2px solid white;
+            padding-bottom: 2px;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 40px;
+            border-radius: 12px;
+            margin-top: 40px;
+        }
+
+        .form-section h2 {
+            color: #35408E;
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: #35408E;
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            background: #2a3470;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(53, 64, 142, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .navbar {
+                width: 100%;
+                justify-content: center;
+                gap: 15px;
+                flex-wrap: wrap;
+            }
+
+            .nav-link {
+                font-size: 13px;
+                padding: 6px 12px;
+            }
+
+            .content-card {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 32px;
+            }
+
+            .mission-vision,
+            .donation-options,
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .seasons-row {
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .quarters-row {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .quarter {
+                min-width: calc(50% - 10px);
+            }
+
+            .legend-content {
+                margin: 0 12px;
+                max-width: calc(100% - 24px);
+            }
+
+            .risk-legend {
+                right: 10px;
+                top: 90px;
+            }
+
+            .form-section {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-title-wrapper">
+            <img src="images/logo-removebg-preview.png" alt="Logo" style="width: 60px; height: 60px; object-fit: contain;">
+            <h1 style="margin: 0; font-size: 26px; color: white; font-weight: 700; letter-spacing: -0.5px;">QC Dengue Risk Map</h1>
+        </div>
+        
+        <nav class="navbar">
+            <a data-page="home" class="nav-link">Home</a>
+            <a data-page="about" class="nav-link">About Us</a>
+            <a data-page="donation" class="nav-link donation">Donation</a>
+            <a data-page="contact" class="nav-link">Contact</a>
+        </nav>
+    </header>
+
+    <!-- HOME SECTION - MAP -->
+    <section id="home" class="page-section">
+        <div id="map"></div>
+
+        <!-- Risk Legend -->
+        <div class="risk-legend" id="riskLegend">
+            <h4>Risk Level</h4>
+            <div class="color-legend">
+                <div class="legend-item">
+                    <div class="color-box high"></div>
+                    <span class="legend-text">High Risk</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box medium"></div>
+                    <span class="legend-text">Moderate Risk</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box low"></div>
+                    <span class="legend-text">Low Risk</span>
+                </div>
+            </div>
+            <button class="toggle-heatmap-btn" onclick="toggleHeatmapVisibility()">Hide Heatmap</button>
+        </div>
+
+        <!-- Bottom Legend -->
+        <div class="legend">
+            <div class="legend-content">
+                <div class="legend-header">📅 Calendar Filter</div>
+                
+                <div class="seasons-row">
+                    <button class="season-btn dry" onclick="toggleSeason('dry')">
+                        <span class="season-icon">☀️</span>
+                        Dry Season (Jan - May)
+                    </button>
+                    <button class="season-btn wet" onclick="toggleSeason('wet')">
+                        <span class="season-icon">🌧️</span>
+                        Wet Season (Jun - Dec)
+                    </button>
+                </div>
+
+                <div class="quarters-row">
+                    <div class="quarter">
+                        <button class="quarter-btn dry-quarter" onclick="toggleQuarter('q1')">Q1</button>
+                        <div class="months-row">
+                            <span class="month-label">Jan</span>
+                            <span class="month-label">Feb</span>
+                            <span class="month-label">Mar</span>
+                        </div>
+                    </div>
+
+                    <div class="quarter">
+                        <button class="quarter-btn dry-quarter" onclick="toggleQuarter('q2')">Q2</button>
+                        <div class="months-row">
+                            <span class="month-label">Apr</span>
+                            <span class="month-label">May</span>
+                            <span class="month-label">Jun</span>
+                        </div>
+                    </div>
+
+                    <div class="quarter">
+                        <button class="quarter-btn wet-quarter" onclick="toggleQuarter('q3')">Q3</button>
+                        <div class="months-row">
+                            <span class="month-label">Jul</span>
+                            <span class="month-label">Aug</span>
+                            <span class="month-label">Sep</span>
+                        </div>
+                    </div>
+
+                    <div class="quarter">
+                        <button class="quarter-btn wet-quarter" onclick="toggleQuarter('q4')">Q4</button>
+                        <div class="months-row">
+                            <span class="month-label">Oct</span>
+                            <span class="month-label">Nov</span>
+                            <span class="month-label">Dec</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info">
+            <div class="info-content">
+                📍 Click anywhere on the map to view risk level & prevention measures
+            </div>
+        </div>
+    </section>
+
+    <!-- ABOUT US SECTION -->
+    <section id="about" class="content-section page-section">
+        <div class="container">
+            <div class="content-card">
+                <h1>About Us</h1>
+                
+                <p>Welcome to the Quezon City Dengue Risk Map Project. We are a dedicated team committed to helping communities understand and prevent dengue fever through innovative mapping technology and real-time risk assessment.</p>
+
+                <h2>What We Do</h2>
+                <p>Our interactive heat map system provides residents and health officials with up-to-date information about dengue risk levels across Quezon City. By visualizing mosquito breeding hotspots and risk zones, we empower communities to take preventive action and protect their families.</p>
+
+                <p>The platform uses seasonal data, environmental factors, and historical dengue cases to generate accurate risk predictions. Users can explore different time periods throughout the year to understand how dengue risk fluctuates and plan accordingly.</p>
+
+                <div class="mission-vision">
+                    <div class="card">
+                        <h3>🎯 Our Mission</h3>
+                        <p>To reduce dengue cases in Quezon City by providing accessible, accurate, and actionable information that enables communities to prevent mosquito breeding and protect public health.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>👁️ Our Vision</h3>
+                        <p>A dengue-free Quezon City where every resident has the knowledge and tools to maintain a safe, healthy environment for their families and communities.</p>
+                    </div>
+                </div>
+
+                <h2>Why It Matters</h2>
+                <p>Dengue fever is a serious public health concern in the Philippines, affecting thousands of families each year. By identifying high-risk areas and providing prevention guidelines, we can significantly reduce the spread of this disease.</p>
+
+                <p>Our project combines technology with community action, making health information accessible to everyone. Whether you're a concerned parent, a barangay official, or a health worker, our map helps you make informed decisions about dengue prevention.</p>
+
+                <h2>Get Involved</h2>
+                <p>Join us in the fight against dengue. Use our map to check your area's risk level, follow the prevention measures, and share this tool with your neighbors. Together, we can create safer communities across Quezon City.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- DONATION SECTION -->
+    <section id="donation" class="content-section page-section">
+        <div class="container">
+            <div class="content-card">
+                <div class="heart-icon">❤️</div>
+                <h1>Support Our Mission</h1>
+                
+                <p style="text-align: center;">Your generous donation helps us maintain and improve the Dengue Risk Map system, enabling us to protect more families and communities across Quezon City.</p>
+
+                <div class="donation-options">
+                    <div class="donation-card">
+                        <h3>💵 One-Time Donation</h3>
+                        <p>Make a single contribution to support our ongoing efforts in dengue prevention and community health education.</p>
+                    </div>
+
+                    <div class="donation-card">
+                        <h3>📅 Monthly Support</h3>
+                        <p>Become a monthly donor and help us sustain our operations, data updates, and community outreach programs.</p>
+                    </div>
+
+                    <div class="donation-card">
+                        <h3>🤝 Corporate Partnership</h3>
+                        <p>Partner with us to sponsor specific areas or programs, making a lasting impact on public health.</p>
+                    </div>
+                </div>
+
+                <div class="impact-section">
+                    <h2>Your Impact</h2>
+                    <ul class="impact-list">
+                        <li>Maintain real-time dengue risk mapping technology</li>
+                        <li>Conduct community awareness and education programs</li>
+                        <li>Provide prevention resources to high-risk barangays</li>
+                        <li>Support research and data collection efforts</li>
+                        <li>Develop mobile apps for wider accessibility</li>
+                        <li>Train community health workers</li>
+                    </ul>
+                </div>
+
+                <p style="text-align: center;"><strong>Every contribution, no matter the size, makes a difference in the fight against dengue.</strong></p>
+
+                <div style="text-align: center;">
+                    <a href="#" class="cta-button">Donate Now</a>
+                </div>
+
+                <p style="margin-top: 30px; font-size: 14px; color: #888; text-align: center;">For bank transfer details or other donation methods, please contact us through our Contact section.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACT SECTION -->
+    <section id="contact" class="content-section page-section">
+        <div class="container">
+            <div class="content-card">
+                <h1>Get In Touch</h1>
+                
+                <p style="text-align: center;">Have questions, suggestions, or want to report a dengue case? We'd love to hear from you. Reach out to us through any of the channels below.</p>
+
+                <div class="contact-grid">
+                    <div class="contact-card">
+                        <div class="contact-icon">📧</div>
+                        <h3>Email Us</h3>
+                        <p>Send us an email and we'll respond within 24 hours</p>
+                        <a href="mailto:info@qcdengue.ph">info@qcdengue.ph</a>
+                    </div>
+
+                    <div class="contact-card">
+                        <div class="contact-icon">📞</div>
+                        <h3>Call Us</h3>
+                        <p>Available Monday to Friday, 9 AM - 5 PM</p>
+                        <a href="tel:+639123456789">+63 912 345 6789</a>
+                    </div>
+
+                    <div class="contact-card">
+                        <div class="contact-icon">📍</div>
+                        <h3>Visit Us</h3>
+                        <p>Quezon City Hall<br>Elliptical Road, Diliman<br>Quezon City, Metro Manila</p>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>Send Us a Message</h2>
+                    <form>
+                        <div class="form-group">
+                            <label for="name">Full Name *</label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email Address *</label>
+                            <input type="email" id="email" name="email" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="subject">Subject *</label>
+                            <input type="text" id="subject" name="subject" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="message">Message *</label>
+                            <textarea id="message" name="message" required></textarea>
+                        </div>
+
+                        <button type="submit" class="submit-btn">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script>
+        // Page Navigation System
+        let currentPage = 'home';
+        
+        function showPage(pageName) {
+            document.querySelectorAll('.page-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            const targetSection = document.getElementById(pageName);
+            if (targetSection) {
+                targetSection.style.display = 'flex';
+                currentPage = pageName;
+                
+                if (pageName === 'home' && !window.mapInitialized) {
+                    initializeMap();
+                }
+            }
+            
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active-page');
+            });
+            const activeLink = document.querySelector(`[data-page="${pageName}"]`);
+            if (activeLink) {
+                activeLink.classList.add('active-page');
+            }
+        }
+        
+        function initializeMap() {
+            const qcBounds = [
+                [14.5800, 120.9800],
+                [14.7700, 121.1200]
+            ];
+            
+            window.map = L.map('map', {
+                maxBounds: qcBounds,
+                maxBoundsViscosity: 1.0,
+                minZoom: 13,
+                maxZoom: 18
+            }).setView([14.6760, 121.0437], 14);
+            
+            window.mapInitialized = true;
+        
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(window.map);
+
+            window.map.on('click', function(e) {
+                if (!currentFilter) {
+                    L.popup()
+                        .setLatLng(e.latlng)
+                        .setContent(getNoDataPopup())
+                        .openOn(window.map);
+                    return;
+                }
+
+                const riskInfo = getRiskAtLocation(e.latlng);
+                const popupContent = createPopupContent(riskInfo);
+                
+                L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent(popupContent)
+                    .openOn(window.map);
+            });
+            
+            const qcBoundaryPolygon = [
+                [14.7650, 121.0200],
+                [14.7650, 121.1100],
+                [14.7200, 121.1180],
+                [14.6800, 121.1150],
+                [14.6400, 121.1100],
+                [14.6000, 121.0900],
+                [14.5850, 121.0600],
+                [14.5900, 121.0200],
+                [14.6300, 120.9900],
+                [14.7000, 120.9850],
+                [14.7650, 121.0200]
+            ];
+            
+            L.polygon(qcBoundaryPolygon, {
+                color: '#764ba2',
+                fillColor: '#667eea',
+                fillOpacity: 0.02,
+                weight: 2
+            }).addTo(window.map);
+        }
+
+        let heatLayer = null;
+        let currentFilter = null;
+        let heatmapVisible = true;
+        let currentHeatPoints = [];
+
+        function getDistance(lat1, lng1, lat2, lng2) {
+            return Math.sqrt(Math.pow(lat1 - lat2, 2) + Math.pow(lng1 - lng2, 2));
+        }
+
+        function getRiskAtLocation(latlng) {
+            if (!currentHeatPoints || currentHeatPoints.length === 0) {
+                return { level: 'none', intensity: 0 };
+            }
+
+            let maxIntensity = 0;
+            
+            currentHeatPoints.forEach(point => {
+                const distance = getDistance(latlng.lat, latlng.lng, point[0], point[1]);
+                const influence = 0.015;
+                
+                if (distance < influence) {
+                    const intensity = point[2] * (1 - (distance / influence));
+                    maxIntensity = Math.max(maxIntensity, intensity);
+                }
+            });
+
+            if (maxIntensity > 0.65) {
+                return { level: 'high', intensity: maxIntensity };
+            } else if (maxIntensity > 0.35) {
+                return { level: 'medium', intensity: maxIntensity };
+            } else if (maxIntensity > 0.1) {
+                return { level: 'low', intensity: maxIntensity };
+            } else {
+                return { level: 'none', intensity: 0 };
+            }
+        }
+
+        function createPopupContent(riskInfo) {
+            if (riskInfo.level === 'high') {
+                return `
+                    <div class="popup-header high-risk">
+                        🔴 High Risk Area
+                    </div>
+                    <div class="popup-body">
+                        <div class="risk-level">High risk of dengue mosquito breeding</div>
+                        <div class="prevention-title">⚠️ Prevention Measures</div>
+                        <ul class="prevention-list">
+                            <li>Remove all standing water immediately</li>
+                            <li>Clean water containers weekly</li>
+                            <li>Use mosquito repellent regularly</li>
+                            <li>Install window screens</li>
+                            <li>Wear long sleeves outdoors</li>
+                            <li>Report breeding sites to barangay</li>
+                        </ul>
+                    </div>
+                `;
+            } else if (riskInfo.level === 'medium') {
+                return `
+                    <div class="popup-header medium-risk">
+                        🟠 Medium Risk Area
+                    </div>
+                    <div class="popup-body">
+                        <div class="risk-level">Moderate risk of dengue mosquito breeding</div>
+                        <div class="prevention-title">⚠️ Prevention Measures</div>
+                        <ul class="prevention-list">
+                            <li>Check for standing water weekly</li>
+                            <li>Cover water containers properly</li>
+                            <li>Use mosquito repellent when needed</li>
+                            <li>Keep surroundings clean</li>
+                            <li>Monitor for mosquito activity</li>
+                        </ul>
+                    </div>
+                `;
+            } else if (riskInfo.level === 'low') {
+                return `
+                    <div class="popup-header low-risk">
+                        🟡 Low Risk Area
+                    </div>
+                    <div class="popup-body">
+                        <div class="risk-level">Low risk of dengue mosquito breeding</div>
+                        <div class="prevention-title">✓ Prevention Measures</div>
+                        <ul class="prevention-list">
+                            <li>Maintain cleanliness regularly</li>
+                            <li>Dispose of containers properly</li>
+                            <li>Check for potential breeding sites</li>
+                            <li>Stay informed about dengue</li>
+                        </ul>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="popup-header no-risk">
+                        ✓ No to Low Risk
+                    </div>
+                    <div class="popup-body">
+                        <div class="risk-level">No to very low risk of dengue in this area</div>
+                        <div class="prevention-title">✓ General Prevention</div>
+                        <ul class="prevention-list">
+                            <li>Keep your environment clean</li>
+                            <li>Prevent water accumulation</li>
+                            <li>Practice the 4S strategy</li>
+                            <li>Stay vigilant and informed</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+
+        function getNoDataPopup() {
+            return `
+                <div class="popup-header no-risk">
+                    ℹ️ No Data Selected
+                </div>
+                <div class="popup-body">
+                    <div class="risk-level">Please select a season or quarter to view risk levels</div>
+                    <div class="prevention-title">✓ General Prevention</div>
+                    <ul class="prevention-list">
+                        <li>Keep your environment clean</li>
+                        <li>Prevent water accumulation</li>
+                        <li>Use mosquito repellent</li>
+                        <li>Stay informed about dengue</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        function getHeatPoints(period) {
+            const points = [];
+            
+            const highRisk = [
+                [14.6760, 121.0437, 1.0],
+                [14.6420, 121.0380, 0.95],
+                [14.7100, 121.0550, 0.90],
+                [14.6580, 121.0890, 0.92],
+            ];
+
+            const mediumRisk = [
+                [14.6920, 121.0280, 0.70],
+                [14.6320, 121.0620, 0.72],
+                [14.7230, 121.0680, 0.68],
+                [14.6480, 121.0680, 0.65],
+                [14.7050, 121.0920, 0.67],
+            ];
+
+            const lowRisk = [
+                [14.7380, 121.0220, 0.45],
+                [14.6120, 121.0520, 0.42],
+                [14.6750, 121.0980, 0.40],
+                [14.6850, 121.0140, 0.38],
+                [14.7150, 121.0180, 0.43],
+            ];
+
+            const multiplier = period === 'wet' || period === 'q2' || period === 'q3' ? 1.3 : 0.8;
+
+            [...highRisk, ...mediumRisk, ...lowRisk].forEach(point => {
+                const intensity = Math.min(1.0, point[2] * multiplier);
+                
+                points.push([point[0], point[1], intensity]);
+                
+                const spread = 0.008;
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * 2 * Math.PI;
+                    const distance = spread * (0.5 + Math.random() * 0.5);
+                    points.push([
+                        point[0] + Math.cos(angle) * distance,
+                        point[1] + Math.sin(angle) * distance,
+                        intensity * (0.6 + Math.random() * 0.3)
+                    ]);
+                }
+            });
+
+            return points;
+        }
+
+        function clearRiskZones() {
+            if (heatLayer) {
+                window.map.removeLayer(heatLayer);
+                heatLayer = null;
+            }
+            currentHeatPoints = [];
+            heatmapVisible = true;
+            document.getElementById('riskLegend').classList.remove('show');
+        }
+
+        function displayRiskZones(period) {
+            clearRiskZones();
+            
+            const heatPoints = getHeatPoints(period);
+            currentHeatPoints = heatPoints;
+            
+            heatLayer = L.heatLayer(heatPoints, {
+                radius: 35,
+                blur: 40,
+                maxZoom: 18,
+                max: 1.0,
+                minOpacity: 0.6,
+                gradient: {
+                    0.0: '#ffff00',
+                    0.5: '#ff8800',
+                    1.0: '#ff0000'
+                }
+            }).addTo(window.map);
+            
+            heatmapVisible = true;
+            document.getElementById('riskLegend').classList.add('show');
+            
+            const btn = document.querySelector('.toggle-heatmap-btn');
+            btn.textContent = 'Hide Heatmap';
+            btn.classList.remove('hidden');
+        }
+
+        function clearActiveStates() {
+            document.querySelectorAll('.season-btn, .quarter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+
+        function toggleSeason(season) {
+            if (currentFilter === season) {
+                clearRiskZones();
+                clearActiveStates();
+                currentFilter = null;
+            } else {
+                clearActiveStates();
+                currentFilter = season;
+                displayRiskZones(season);
+                event.target.closest('.season-btn').classList.add('active');
+            }
+        }
+
+        function toggleQuarter(quarter) {
+            if (currentFilter === quarter) {
+                clearRiskZones();
+                clearActiveStates();
+                currentFilter = null;
+            } else {
+                clearActiveStates();
+                currentFilter = quarter;
+                displayRiskZones(quarter);
+                event.target.closest('.quarter-btn').classList.add('active');
+            }
+        }
+
+        function toggleHeatmapVisibility() {
+            const btn = document.querySelector('.toggle-heatmap-btn');
+            
+            if (heatmapVisible && heatLayer) {
+                window.map.removeLayer(heatLayer);
+                heatmapVisible = false;
+                btn.textContent = 'Show Heatmap';
+                btn.classList.add('hidden');
+            } else if (!heatmapVisible && heatLayer && currentFilter) {
+                window.map.addLayer(heatLayer);
+                heatmapVisible = true;
+                btn.textContent = 'Hide Heatmap';
+                btn.classList.remove('hidden');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            showPage('home');
+            
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const page = this.getAttribute('data-page');
+                    if (page) {
+                        showPage(page);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
